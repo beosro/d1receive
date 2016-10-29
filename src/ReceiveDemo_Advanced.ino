@@ -1,25 +1,6 @@
-/*
-  Example for receiving
+#include <RCTrx.hpp>
 
-  https://github.com/sui77/rc-switch/
-
-  If you want to visualize a telegram copy the raw data and
-  paste it into http://test.sui.li/oszi/
-*/
-// int pinno = 4;
-//
-// void setup() {
-//   pinMode(pinno, INPUT_PULLUP);
-//   pinMode(LED_BUILTIN, OUTPUT);
-// }
-//
-// void loop() {
-//   digitalWrite(LED_BUILTIN, digitalRead(pinno));
-// }
-
-#include <RCTrx.h>
-
-long times[] = {
+long times[] = {  // proove1 A on 1
 1122, 101222, 1112, 102256, 1120, 101241, 1112, 31074, 307, 69820, 1120, 101278, 1112, 101253,
 1120, 6949, 418, 1044, 416, 1037, 420, 1036, 416, 1037, 418, 1045, 417, 1039, 415, 1038, 415,
 1042, 415, 1045, 413, 1042, 416, 1041, 413, 1041, 414, 1049, 411, 1044, 411, 1047, 406, 1051,
@@ -47,21 +28,42 @@ long times[] = {
 1079, 385, 1070, 387, 1071, 1107, 363, 383, 1081, 1104, 365, 382, 1074, 1105, 369, 377};
 int timesLength = sizeof times / sizeof times[0];
 
-RCTrx proto = RCTrx(350, Seq(1, 31), Seq(1,  3), Seq(3,  1));
+// HandleDuration::HandleDuration
+//   179 < 350 < 521
+// HandleDuration::HandleDuration
+//   5534 < 10850 < 16166
+// Handle2PulseDataBytes::Handle2PulseDataBytes
+//   179 < 350 < 521
+//   536 < 1050 < 1564
+//   536 < 1050 < 1564
+//   179 < 350 < 521
+
+RCTrx rxtrx;
+
+long i = 0;
 
 void setup() {
   Serial.begin(115200);
-  for (long i = 0; i < timesLength; i++) {
-    if (proto.process(times[i])) {
-      Serial.println("proto success");
-      break;
-    }
+  while (!Serial) {
+    delay(100);
   }
+  delay(1000);
+  Serial.println();
+  Serial.println("ready.");
+  rxtrx = RCTrx();
+  rxtrx.onCodeReceived([](Code code){
+    Serial.printf("Received code %lu\n", code);
+  });
 }
 
 void loop() {
-  // if (mySwitch.available()) {
-  //   output(mySwitch.getReceivedValue(), mySwitch.getReceivedBitlength(), mySwitch.getReceivedDelay(), mySwitch.getReceivedRawdata(),mySwitch.getReceivedProtocol());
-  //   mySwitch.resetAvailable();
-  // }
+  if (i < timesLength) {
+    rxtrx.process(times[i]);
+    i++;
+  } else if (i == timesLength) {
+    Serial.println("end.");
+    i++;
+  } else {
+    //i = 0;
+  }
 }
