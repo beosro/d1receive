@@ -57,7 +57,7 @@ protected:
   ReceivedCodeCallback callback;
 public:
   ProtocolHandler() : availableCode(false) {};
-  virtual void send(Code code, int protocolId) = 0;
+  virtual void send(Code code) = 0;
   virtual void process(long duration) = 0;     // process pulse with duration, and return true if a valid packet is received
   int getState() {return state;};
   void onCodeReceived(ReceivedCodeCallback aCallback) {callback = aCallback;};
@@ -67,18 +67,21 @@ class ProtocolHandlerProove1 : public ProtocolHandler {
   PulseHandler* pulseHandlers[3];
 public:
   ProtocolHandlerProove1(long startDurationA, long startDurationB, long bit0DurationA, long bit0DurationB, long bit1DurationA, long bit1DurationB);
-  void send(Code code, int protocolId);
+  void send(Code code);
   void process(long duration);
 };
 
 class RCTrx {
   ProtocolHandler *protocolHandler;
+  static void handleInterrupt();
 public:
+  static RCTrx* inst;
   RCTrx();
   void process(long duration);
   void send(Code, int protocolId);
   State getState() {return protocolHandler->getState();};
   void onCodeReceived(ReceivedCodeCallback callback) {protocolHandler->onCodeReceived(callback);};
+  void enableReceive(int pin);
 };
 
 #endif

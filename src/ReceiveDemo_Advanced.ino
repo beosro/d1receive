@@ -1,4 +1,5 @@
 #include <RCTrx.hpp>
+#include <algorithm>    // std::max
 
 long times[] = {  // proove1 A on 1
 1122, 101222, 1112, 102256, 1120, 101241, 1112, 31074, 307, 69820, 1120, 101278, 1112, 101253,
@@ -41,29 +42,24 @@ int timesLength = sizeof times / sizeof times[0];
 RCTrx rxtrx;
 
 long i = 0;
+unsigned long serviceTime = 0;    // interrupt service time
 
 void setup() {
   Serial.begin(115200);
   while (!Serial) {
     delay(100);
   }
-  delay(1000);
+  delay(100);
   Serial.println();
   Serial.println("ready.");
   rxtrx = RCTrx();
   rxtrx.onCodeReceived([](Code code){
     Serial.printf("Received code %lu\n", code);
+    Serial.printf("max service time %lu\n", serviceTime);
+    serviceTime = 0;
   });
+ rxtrx.enableReceive(4);
 }
 
 void loop() {
-  if (i < timesLength) {
-    rxtrx.process(times[i]);
-    i++;
-  } else if (i == timesLength) {
-    Serial.println("end.");
-    i++;
-  } else {
-    //i = 0;
-  }
 }

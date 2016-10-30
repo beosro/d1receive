@@ -2,7 +2,18 @@
 #include <stdlib.h>
 #include "Arduino.h"
 
-const long tolerancePercent = 49;
+#define DEBUG 0
+#define Serial if (DEBUG) Serial
+
+#ifdef ESP8266
+    // interrupt handler and related code must be in RAM on ESP8266,
+    // according to issue #46.
+    #define RECEIVE_ATTR ICACHE_RAM_ATTR
+#else
+    #define RECEIVE_ATTR
+#endif
+
+const long tolerancePercent = 35;
 
 bool near(long a, long b) {
   long tolerance = b * tolerancePercent / 100;
@@ -126,10 +137,11 @@ ProtocolHandlerProove1::ProtocolHandlerProove1(long startDurationA, long startDu
     state = 0;
 }
 
-void ProtocolHandlerProove1::send(Code code, int protocolId) {
+void ProtocolHandlerProove1::send(Code code) {
 }
 
 void ProtocolHandlerProove1::process(long duration) {
+  // Serial.printf("P");
   int n = 10;
   while (pulseHandlers[state]->processPulse(state, duration)) {
     if (n-- <= 0) {
@@ -137,6 +149,8 @@ void ProtocolHandlerProove1::process(long duration) {
     }
   };
 }
+
+RCTrx* RCTrx::inst = 0;
 
 /*
   RCTrx - Arduino libary for remote control outlet switches
@@ -148,5 +162,20 @@ void RCTrx::process(long duration) {
   protocolHandler->process(duration);
 }
 
-void RCTrx::send(Code, int protocolId) {
+void RCTrx::send(Code code, int protocolId) {
+  protocolHandler->send(code);
+}
+
+void RCTrx::enableReceive(int pin) {
+  inst = this;
+  pinMode(pin, INPUT);
+  attachInterrupt(digitalPinToInterrupt(pin), handleInterrupt, CHANGE);
+}
+
+void RECEIVE_ATTR RCTrx::handleInterrupt() {
+  static unsigned long lastTime = 0;
+  const long time = micros();
+  const unsigned int duration = time - lastTime;
+  inst->process(duration);
+  lastTime = time;
 }
