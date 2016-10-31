@@ -151,6 +151,33 @@ bool Handle2PulseDataBytes::processPulse(State& state, long duration) {
 }
 
 
+Handle4PulseDataBytes::Handle4PulseDataBytes(CodeReceivedCallback callback, int bitCount, long bitDurationShort, long bitDurationLong)
+    : callback(callback), bitCount(bitCount), bitDurationShort(bitDurationShort), bitDurationLong(bitDurationLong),
+    bitState(0), receivedBits(0), code(0) {
+}
+
+int Handle4PulseDataBytes::sendPulse(State& state, Code code, int sendPin) {
+  for (int i = bitCount - 1; i >= 0; i--) {
+    if (code & 1 << i) {
+      invertPin(bitDurationShort, sendPin);
+      invertPin(bitDurationLong, sendPin);
+      invertPin(bitDurationShort, sendPin);
+      invertPin(bitDurationShort, sendPin);
+    } else {
+      invertPin(bitDurationShort, sendPin);
+      invertPin(bitDurationShort, sendPin);
+      invertPin(bitDurationShort, sendPin);
+      invertPin(bitDurationLong, sendPin);
+    }
+  }
+  state++;
+}
+
+bool Handle4PulseDataBytes::processPulse(State& state, long duration) {
+  return false;
+}
+
+
 ProtocolHandlerProove1::ProtocolHandlerProove1(long startDurationA, long startDurationB,
     long bit0DurationA, long bit0DurationB, long bit1DurationA, long bit1DurationB)
   : pulseHandlers{
@@ -184,20 +211,61 @@ void ProtocolHandlerProove1::process(long duration) {
   };
 }
 
-RCTrx* RCTrx::inst = 0;
+
+ProtocolHandlerProove2::ProtocolHandlerProove2(long startDurationShort, long startDurationLong,
+    long bitDurationShort, long bitDurationLong, long stopDurationShort, long stopDurationLong)
+  : pulseHandlers{
+      new HandleDuration(startDurationShort),
+      (new HandleDuration(startDurationLong))->setNoRead(true),
+      new Handle4PulseDataBytes([&](Code code) {
+        callback(code);
+      }, 32, bitDurationShort, bitDurationLong),
+      new HandleDuration(stopDurationShort),
+      new HandleDuration(stopDurationLong)
+    } {
+    state = 0;
+}
+
+void ProtocolHandlerProove2::send(Code code, int sendPin) {
+  pinState = 1;
+  for (int i = 0; i < 10; i++) {
+    int state = 0;
+    while (state < (sizeof pulseHandlers / sizeof pulseHandlers[0])) {
+      pulseHandlers[state]->sendPulse(state, code, sendPin);
+    }
+  }
+  digitalWrite(sendPin, 0);
+}
+
+void ProtocolHandlerProove2::process(long duration) {
+  // DebugLog.printf("P");
+  int n = 10;
+  while (pulseHandlers[state]->processPulse(state, duration)) {
+    if (n-- <= 0) {
+      break;
+    }
+  };
+}
+
 
 /*
   RCTrx - Arduino libary for remote control outlet switches
 */
-RCTrx::RCTrx() : protocolHandler(new ProtocolHandlerProove1(350, 31*350, 350, 3*350, 3*350, 350)) {
+RCTrx::RCTrx()
+  : protocolHandlers{
+    new ProtocolHandlerProove1(350, 31*350, 350, 3*350, 3*350, 350),
+    new ProtocolHandlerProove2(289, 2685, 301, 1236, 200, 10580)
+  } {
 }
 
+RCTrx* RCTrx::inst = 0;
+
 void RCTrx::process(long duration) {
-  protocolHandler->process(duration);
+  protocolHandlers[0]->process(duration);
 }
 
 void RCTrx::send(Code code, int protocolId) {
-  protocolHandler->send(code, sendPin);
+  protocolHandlers[protocolId]->send(code, sendPin);
 }
 
 void RCTrx::enableReceive(int pin) {
@@ -229,24 +297,36 @@ void RCTrx::sendTimeArray(long *times, int count) {
 void RCTrx::sendCode(Code code) {
   const unsigned long t = 350;
   for (int i = 0; i < 10; i++) {
-    for (int j = 23; j >= 0; j--) {
+    digitalWrite(sendPin, 1);
+    delayMicroseconds(289);
+    digitalWrite(sendPin, 0);
+    delayMicroseconds(2685);
+    for (int j = 31; j >= 0; j--) {
       if (code & (1 << j)) {
-        // one
+        // one - klkk
         digitalWrite(sendPin, 1);
-        delayMicroseconds(t * 3);
+        delayMicroseconds(301);
         digitalWrite(sendPin, 0);
-        delayMicroseconds(t);
+        delayMicroseconds(1236);
+        digitalWrite(sendPin, 1);
+        delayMicroseconds(301);
+        digitalWrite(sendPin, 0);
+        delayMicroseconds(211);
       } else {
-        // zero
+        // zero - kkkl
         digitalWrite(sendPin, 1);
-        delayMicroseconds(t);
+        delayMicroseconds(301);
         digitalWrite(sendPin, 0);
-        delayMicroseconds(t * 3);
+        delayMicroseconds(211);
+        digitalWrite(sendPin, 1);
+        delayMicroseconds(301);
+        digitalWrite(sendPin, 0);
+        delayMicroseconds(1236);
       }
     }
     digitalWrite(sendPin, 1);
-    delayMicroseconds(t);
+    delayMicroseconds(200);
     digitalWrite(sendPin, 0);
-    delayMicroseconds(t * 31);
+    delayMicroseconds(10580);
   }
 }

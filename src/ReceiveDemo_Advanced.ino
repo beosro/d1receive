@@ -53,8 +53,8 @@ void setup() {
 void loop() {
   delay(1500);
   Serial.println("on");
-  rxtrx.send(21, 0);
+  rxtrx.send(2443573918, 1);
   delay(1500);
   Serial.println("off");
-  rxtrx.send(20, 0);
+  rxtrx.send(2443573902, 1);
 }

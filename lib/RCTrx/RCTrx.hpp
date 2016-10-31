@@ -44,6 +44,20 @@ public:
   bool processPulse(State& prevState, long duration);     // process duration and return a new state
 };
 
+class Handle4PulseDataBytes : public PulseHandler {
+  CodeReceivedCallback callback;
+  Code code;
+  int bitCount;
+  long bitDurationShort;
+  long bitDurationLong;
+  int bitState;
+  int receivedBits;
+public:
+  Handle4PulseDataBytes(CodeReceivedCallback callback, int bitCount, long bitDurationShort, long bitDurationLong);
+  int sendPulse(State& state, Code code, int sendPin);
+  bool processPulse(State& prevState, long duration);     // process duration and return a new state
+};
+
 class ProtocolHandler {
 protected:
   Code receivedCode;
@@ -66,8 +80,18 @@ public:
   void process(long duration);
 };
 
+class ProtocolHandlerProove2 : public ProtocolHandler {
+  PulseHandler* pulseHandlers[5];
+public:
+  ProtocolHandlerProove2(long startDurationShort, long startDurationLong,
+      long bitDurationShort, long bitDurationLong, long stopDurationShort,
+      long stopDurationLong);
+  void send(Code code, int sendPin);
+  void process(long duration);
+};
+
 class RCTrx {
-  ProtocolHandler *protocolHandler;
+  ProtocolHandler* protocolHandlers[2];
   static void handleInterrupt();
   static RCTrx* inst;
   int sendPin;
@@ -75,8 +99,8 @@ public:
   RCTrx();
   void process(long duration);
   void send(Code code, int protocolId);
-  State getState() {return protocolHandler->getState();};
-  void onCodeReceived(CodeReceivedCallback callback) {protocolHandler->onCodeReceived(callback);};
+  State getState() {return protocolHandlers[0]->getState();};
+  void onCodeReceived(CodeReceivedCallback callback) {protocolHandlers[0]->onCodeReceived(callback);};
   void enableReceive(int pin);
   void setSendPin(int pin);
   void sendTimeArray(long *times, int count);
