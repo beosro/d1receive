@@ -1,5 +1,8 @@
 #include <RCTrx.hpp>
-#include <algorithm>    // std::max
+#include <algorithm>
+#include <ssca.h>
+
+int readLine(char *buffer, int len);
 
 long times[] = {  // proove1 A on 1
 1122, 101222, 1112, 102256, 1120, 101241, 1112, 31074, 307, 69820, 1120, 101278, 1112, 101253,
@@ -50,11 +53,50 @@ void setup() {
  // rxtrx.sendTimeArray(times, timesLength);
 }
 
-void loop() {
+void qwe() {
   delay(1500);
   Serial.println("on");
   rxtrx.send(2443573918, 1);
   delay(1500);
   Serial.println("off");
   rxtrx.send(2443573902, 1);
+}
+
+char line[100];
+unsigned long code;
+int protocolId;
+
+void loop() {
+  if (readLine(line, 100)) {
+    if (sscanf(line, "send %lu %d", &code, &protocolId) == 2) {
+      rxtrx.send(code, protocolId);
+    } else if (sscanf(line, "sniff %lu %d", &code, &protocolId) == 2) {
+      //rxtrx.sniff(4)
+    } else {
+      Serial.printf("send <code> <protocolId> - send code using specified protocol\n");
+      Serial.printf("sniff - reads and lists state and duration of 200 radio pulses\n");
+    }
+  }
+}
+
+int readLine(char *buffer, int len) {
+  static int pos = 0;
+
+  int readch = Serial.read();
+  if (readch > 0) {
+    switch (readch) {
+    case '\n': // Ignore new-lines
+      break;
+    case '\r': // Return on CR
+      pos = 0;  // Reset position index ready for next time
+      return 1;
+    default:
+      Serial.write(readch);
+      if (pos < len-1) {
+        buffer[pos++] = readch;
+        buffer[pos] = 0;
+      }
+    }
+  }
+  return 0;
 }
