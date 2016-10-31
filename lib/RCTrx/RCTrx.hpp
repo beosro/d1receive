@@ -7,16 +7,14 @@
 
 typedef unsigned long Code;
 typedef int State;
-typedef std::function<void(int)> ReceivedCodeCallback;
-
-class ProtocolHandler;
+typedef std::function<void(int)> CodeReceivedCallback;
 
 class PulseHandler {
 protected:
   int misState;
   bool noRead;
 public:
-  virtual void sendPulse() = 0;
+  virtual int sendPulse(State& state, Code code, int sendPin) = 0;
   virtual bool processPulse(State& prevState, long duration) = 0;     // process duration and return a new state
 };
 
@@ -24,16 +22,16 @@ class HandleDuration : public PulseHandler {
   long requiredDuration;
 public:
   HandleDuration(long duration);
-  void sendPulse();
+  int sendPulse(State& state, Code code, int sendPin);
   bool processPulse(State& prevState, long duration);     // process duration and return a new state
   HandleDuration* setNoRead(bool b) {noRead = b; return this;};
   HandleDuration* setMismatchState(State state) {misState = state; return this;};
 };
 
 class Handle2PulseDataBytes : public PulseHandler {
-  ReceivedCodeCallback callback;
+  CodeReceivedCallback callback;
   Code code;
-  int count;
+  int bitCount;
   long bit0DurationA;
   long bit0DurationB;
   long bit1DurationA;
@@ -41,47 +39,48 @@ class Handle2PulseDataBytes : public PulseHandler {
   int bitState;
   int receivedBits;
 public:
-  Handle2PulseDataBytes(ReceivedCodeCallback callback, int count, long bit0DurationA, long bit0DurationB, long bit1DurationA, long bit1DurationB);
-  void sendPulse();
+  Handle2PulseDataBytes(CodeReceivedCallback callback, int count, long bit0DurationA, long bit0DurationB, long bit1DurationA, long bit1DurationB);
+  int sendPulse(State& state, Code code, int sendPin);
   bool processPulse(State& prevState, long duration);     // process duration and return a new state
 };
-
-typedef void (ProtocolHandler::* PHCallback)(Code) ;
 
 class ProtocolHandler {
 protected:
   Code receivedCode;
   bool availableCode;
   State state;
-  // void phCallback(Code code) {};
-  ReceivedCodeCallback callback;
+  CodeReceivedCallback callback;
 public:
   ProtocolHandler() : availableCode(false) {};
-  virtual void send(Code code) = 0;
+  virtual void send(Code code, int sendPin) = 0;
   virtual void process(long duration) = 0;     // process pulse with duration, and return true if a valid packet is received
   int getState() {return state;};
-  void onCodeReceived(ReceivedCodeCallback aCallback) {callback = aCallback;};
+  void onCodeReceived(CodeReceivedCallback aCallback) {callback = aCallback;};
 };
 
 class ProtocolHandlerProove1 : public ProtocolHandler {
   PulseHandler* pulseHandlers[3];
 public:
   ProtocolHandlerProove1(long startDurationA, long startDurationB, long bit0DurationA, long bit0DurationB, long bit1DurationA, long bit1DurationB);
-  void send(Code code);
+  void send(Code code, int sendPin);
   void process(long duration);
 };
 
 class RCTrx {
   ProtocolHandler *protocolHandler;
   static void handleInterrupt();
-public:
   static RCTrx* inst;
+  int sendPin;
+public:
   RCTrx();
   void process(long duration);
-  void send(Code, int protocolId);
+  void send(Code code, int protocolId);
   State getState() {return protocolHandler->getState();};
-  void onCodeReceived(ReceivedCodeCallback callback) {protocolHandler->onCodeReceived(callback);};
+  void onCodeReceived(CodeReceivedCallback callback) {protocolHandler->onCodeReceived(callback);};
   void enableReceive(int pin);
+  void setSendPin(int pin);
+  void sendTimeArray(long *times, int count);
+  void sendCode(Code code);
 };
 
 #endif

@@ -29,20 +29,9 @@ long times[] = {  // proove1 A on 1
 1079, 385, 1070, 387, 1071, 1107, 363, 383, 1081, 1104, 365, 382, 1074, 1105, 369, 377};
 int timesLength = sizeof times / sizeof times[0];
 
-// HandleDuration::HandleDuration
-//   179 < 350 < 521
-// HandleDuration::HandleDuration
-//   5534 < 10850 < 16166
-// Handle2PulseDataBytes::Handle2PulseDataBytes
-//   179 < 350 < 521
-//   536 < 1050 < 1564
-//   536 < 1050 < 1564
-//   179 < 350 < 521
-
 RCTrx rxtrx;
 
 long i = 0;
-unsigned long serviceTime = 0;    // interrupt service time
 
 void setup() {
   Serial.begin(115200);
@@ -55,11 +44,17 @@ void setup() {
   rxtrx = RCTrx();
   rxtrx.onCodeReceived([](Code code){
     Serial.printf("Received code %lu\n", code);
-    Serial.printf("max service time %lu\n", serviceTime);
-    serviceTime = 0;
   });
- rxtrx.enableReceive(4);
+ // rxtrx.enableReceive(4);
+ rxtrx.setSendPin(14);
+ // rxtrx.sendTimeArray(times, timesLength);
 }
 
 void loop() {
+  delay(1500);
+  Serial.println("on");
+  rxtrx.send(21, 0);
+  delay(1500);
+  Serial.println("off");
+  rxtrx.send(20, 0);
 }
