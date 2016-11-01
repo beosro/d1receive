@@ -7,10 +7,12 @@
 #define ERROR_LOG_LEVEL 2
 #define NO_LOG_LEVEL 3
 
-#define logLevel INFO_LOG_LEVEL
-#define DebugLog if (logLevel >= DEBUG_LOG_LEVEL) Serial
-#define InfoLog if (logLevel >= INFO_LOG_LEVEL) Serial
-#define ErrorLog if (logLevel >= ERROR_LOG_LEVEL) Serial
+// #define logLevel INFO_LOG_LEVEL
+// #define DebugLog if (logLevel >= DEBUG_LOG_LEVEL) Serial
+// #define InfoLog if (logLevel >= INFO_LOG_LEVEL) Serial
+// #define ErrorLog if (logLevel >= ERROR_LOG_LEVEL) Serial
+
+#define DebugLog if (false) Serial
 
 #ifdef ESP8266
     // interrupt handler and related code must be in RAM on ESP8266,
@@ -20,14 +22,10 @@
     #define RECEIVE_ATTR
 #endif
 
-const long tolerancePercent = 35;
+const long tolerancePercent = 25;
 int pinState = 0;
 
-bool near(long a, long b) {
-  long tolerance = b * tolerancePercent / 100;
-  bool result = abs(a - b) < tolerance;
-  return result;
-}
+#define near(referenceDuration, duration) abs(referenceDuration - duration) < referenceDuration * tolerancePercent / 100
 
 void printDuration(const char *name, long duration) {
   DebugLog.printf("  %ld < %ld < %ld\n", duration - duration * tolerancePercent / 100, duration, duration + duration * tolerancePercent / 100);
@@ -54,7 +52,7 @@ int HandleDuration::sendPulse(State& state, Code code, int sendPin) {
 
 bool HandleDuration::processPulse(State& state, long duration) {
   DebugLog.printf("       HandleDuration::processPulse(%d, %ld)\n", state, duration);
-  if (near(duration, requiredDuration)) {
+  if (near(requiredDuration, duration)) {
     state++;
     return false;
   } else {
@@ -93,7 +91,7 @@ int Handle2PulseDataBytes::sendPulse(State& state, Code code, int sendPin) {
 bool Handle2PulseDataBytes::processPulse(State& state, long duration) {
   DebugLog.printf("Handle2PulseDataBytes::processPulse(%d, %ld) %lu", state, duration, bitState);
   if (bitState == 0) {  // receive first duration for a 0 or 1 bit
-    if (near(duration, bit0DurationA)) {
+    if (near(bit0DurationA, duration)) {
       // valid start of a 0 bit
       DebugLog.printf("\n");
       bitState = 1;
@@ -104,12 +102,8 @@ bool Handle2PulseDataBytes::processPulse(State& state, long duration) {
       bitState = 2;
       return false;
     }
-    long tolerance = bit1DurationA * tolerancePercent / 100;
-    bool result = abs(duration - bit1DurationA) < tolerance;
-    DebugLog.printf(" abs(%ld, %ld)=%ld < tolerance %ld = %d\n",
-        duration, bit1DurationA, abs(duration - bit1DurationA), tolerance, result);
   } else if (bitState == 1) {  // receive second duration for a 0 bit
-    if (near(duration, bit0DurationB)) {
+    if (near(bit0DurationB, duration)) {
       // received a valid 0 bit
       DebugLog.printf(" 0 bit %d of %d\n", receivedBits, bitCount);
 
@@ -125,7 +119,7 @@ bool Handle2PulseDataBytes::processPulse(State& state, long duration) {
       return false;
     }
   } else if (bitState == 2) {  // receive second duration for a 0 bit
-    if (near(duration, bit1DurationB)) {
+    if (near(bit1DurationB, duration)) {
       // received a valid 1 bit
       DebugLog.printf(" 1 bit %d of %d\n", receivedBits, bitCount);
 

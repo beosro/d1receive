@@ -53,15 +53,6 @@ void setup() {
  // rxtrx.sendTimeArray(times, timesLength);
 }
 
-void qwe() {
-  delay(1500);
-  Serial.println("on");
-  rxtrx.send(2443573918, 1);
-  delay(1500);
-  Serial.println("off");
-  rxtrx.send(2443573902, 1);
-}
-
 char line[100];
 unsigned long code;
 int protocolId;
@@ -70,10 +61,13 @@ void loop() {
   if (readLine(line, 100)) {
     if (sscanf(line, "send %lu %d", &code, &protocolId) == 2) {
       rxtrx.send(code, protocolId);
+    } else if (strcmp(line, "rec") == 0) {
+      rxtrx.enableReceive(4);
     } else if (sscanf(line, "sniff %lu %d", &code, &protocolId) == 2) {
       //rxtrx.sniff(4)
     } else {
-      Serial.printf("send <code> <protocolId> - send code using specified protocol\n");
+      Serial.printf("send <code> <protocolId> - send code using specified protocol on pin D5\n");
+      Serial.printf("rec - enable receiver on pin D2\n");
       Serial.printf("sniff - reads and lists state and duration of 200 radio pulses\n");
     }
   }
@@ -89,6 +83,7 @@ int readLine(char *buffer, int len) {
       break;
     case '\r': // Return on CR
       pos = 0;  // Reset position index ready for next time
+      Serial.println();
       return 1;
     default:
       Serial.write(readch);
